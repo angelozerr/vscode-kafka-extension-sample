@@ -16,14 +16,21 @@
 	"main": "./dist/extension.js",
 	"contributes": {
 		"kafka": {
-            "clusterProviders": [
-                {
-                    "id": "my-cluster-provider",
-                    "label": "My Cluster Provider",
-                    "commandId": "vscode-kafka-extension-sample.cluster.providers"
-                }
-            ]
-        },
+			"clusterProviders": [
+				{
+					"id": "my-cluster-provider",
+					"name": "My Cluster Provider"
+				},
+				{
+					"id": "my-cluster-provider-error",
+					"name": "My Cluster Provider [throws ERROR]"
+				},
+				{
+					"id": "my-cluster-provider-error-in-collectClusters",
+					"name": "My Cluster Provider [throws ERROR in collectClusters]"
+				}
+			]
+		},
 		"commands": [
 			{
 				"command": "vscode-kafka-extension-sample.helloWorld",

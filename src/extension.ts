@@ -1,6 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { Kafka } from 'kafkajs';
+import { KafkaConfig } from 'kafkajs';
 import * as vscode from 'vscode';
 
 /**
@@ -35,77 +35,84 @@ export interface ClusterSettings {
 
 }
 
-export interface ClusterProviderProcessor {
-	collectClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined>;
-	createKafka?(connectionOptions: ConnectionOptions): Kafka;
+export interface KafkaExtensionParticipant {
+
+	getClusterProviderParticipant(clusterProviderId: string): ClusterProviderParticipant;
+
 }
 
-class MyClusterProviderProcessor implements ClusterProviderProcessor {
-	async collectClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> {
-		return [
-			{
-				bootstrap: "localhost:9092",
-				id: "my-cluster",
-				name: "My Cluster",
-				clusterProviderId: "my-cluster-provider",
-			}
-		]
-	}
-	createKafka(connectionOptions: ConnectionOptions): Kafka {
-		return new Kafka({
-			clientId: "vscode-kafka",
-			brokers: connectionOptions.bootstrap.split(","),
-			ssl: connectionOptions.ssl
-		})
-	}
+/**
+ * The kafka extension participant.
+ */
+export interface ClusterProviderParticipant {
+
+	/**
+	 * Returns the Kafka clusters managed by this participant.
+	 *
+	 * @param clusterSettings the current cluster settings.
+	 */
+	configureClusters(clusterSettings: ClusterSettings): Promise<Cluster[] | undefined>;
+
+	/**
+	 * Create the KafkaJS client configuration from the given connection options.
+	 * When the participant doesn't implement this method, the KafkaJS client
+	 * configuration is created with the default client configuration factory from vscode-kafka.
+	 *
+	 * @param connectionOptions the Kafka connection options.
+	 */
+	createKafkaConfig?(connectionOptions: ConnectionOptions): KafkaConfig;
 }
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<KafkaExtensionParticipant> {
+	return {
+		getClusterProviderParticipant: (clusterProviderId: string): ClusterProviderParticipant => {
+			switch (clusterProviderId) {
 
-	let a = vscode.commands.registerCommand('vscode-kafka-extension-sample.cluster.providers', () => {
+				case 'my-cluster-provider-error':
+					throw new Error('my-cluster-provider-error');
 
-		return {
+				case 'my-cluster-provider-error-in-collectClusters':
+					return {
 
-			collectClusters: async (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => {
-				return [
-					{
-						bootstrap: "localhost:9092",
-						id: "my-cluster",
-						name: "My Cluster",
-						clusterProviderId: "my-cluster-provider",
-					}
-				]
-			},
+						configureClusters: async (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => {
+							throw new Error('my-cluster-provider-error-in-collectClusters');
+						}
+					};
 
-			createKafka: (connectionOptions: ConnectionOptions): Kafka => {
-				return new Kafka({
-					clientId: "vscode-kafka",
-					brokers: connectionOptions.bootstrap.split(","),
-					ssl: connectionOptions.ssl
-				})
+				default:
+					return {
+
+						configureClusters: async (clusterSettings: ClusterSettings): Promise<Cluster[] | undefined> => {
+							return [
+								{
+									bootstrap: "localhost:9092",
+									id: "my-cluster",
+									name: "My Cluster",
+									clusterProviderId: "my-cluster-provider",
+								},
+								{
+									bootstrap: "localhost:9092",
+									id: "my-cluster2",
+									name: "My Cluster 2",
+									clusterProviderId: "my-cluster-provider",
+								}
+							];
+						},
+
+						createKafkaConfig: (connectionOptions: ConnectionOptions): KafkaConfig => {
+							return {
+								clientId: "vscode-kafka",
+								brokers: connectionOptions.bootstrap.split(","),
+								ssl: connectionOptions.ssl
+							};
+						}
+					};
 			}
-		} as ClusterProviderProcessor;
-		//return new MyClusterProviderProcessor()
-	});
-	context.subscriptions.push(a);
+		}
+	};
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-kafka-extension-sample" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('vscode-kafka-extension-sample.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from vscode-kafka-extension-sample!');
-	});
-
-	context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated
